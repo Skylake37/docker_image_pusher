@@ -91,7 +91,6 @@ jobs:
                   FAILURE_COUNT=$((FAILURE_COUNT + 1))
                   continue
               fi
-              echo "Source digest: $src_digest"
       
               # 检查目标镜像是否存在并获取 digest
               dest_exists=false
@@ -102,6 +101,12 @@ jobs:
       
               # 如果目标存在且 digest 相同，跳过
               echo "🔍 Source digest: $src_digest"
+              if [ "$dest_exists" = true ]; then
+                  echo "🔍 Target digest: $dest_digest"
+              else
+                  echo "🔍 Target does not exist"
+              fi
+
               if [ "$dest_exists" = true ] && [ "$src_digest" == "$dest_digest" ]; then
                   echo "✅ Image $image_name_tag already up-to-date, skipping"
                   SYNC_SUMMARY="${SYNC_SUMMARY}\n✨ ${image_name_tag} (已同步)"
