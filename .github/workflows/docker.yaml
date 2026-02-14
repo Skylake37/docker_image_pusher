@@ -60,8 +60,8 @@ jobs:
               # ---------- 提取镜像名标签和仓库组织（原逻辑不变） ----------
               image_name_tag=$(echo "$full_image" | awk -F'/' '{print $NF}')
               if [[ "$full_image" == *"/"* ]]; then
-                  org_part=$(echo "$full_image" | sed "s|\/${image_name_tag}||" | tr '/' '_')
-                  new_repo_name="${org_part}\/${image_name_tag}"
+                  org_part=$(echo "$full_image" | sed "s|/${image_name_tag}||")
+                  new_repo_name="${org_part}/${image_name_tag}"
               else
                   # org_part="library"
                   new_repo_name="${image_name_tag}"
