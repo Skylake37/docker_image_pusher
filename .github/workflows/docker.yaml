@@ -79,6 +79,8 @@ jobs:
                   echo ">>> Skip: $image_name_tag"
                   continue
               fi
+
+              docker buildx build --platform linux/amd64,linux/arm64/v8 -t "$ALIYUN_REGISTRY/$ALIYUN_NAME_SPACE/sapmachine:latest" --push
               
               # 执行拉取（带参数）
               echo "Pulling $full_image with params: ${pull_params[*]}"
@@ -87,7 +89,7 @@ jobs:
               else
                   docker pull "${pull_params[@]}" "$full_image"
               fi
-          
+
               # 如果拉取失败，记录并跳过后续
               if [ $? -ne 0 ]; then
                   echo "Pull failed for $full_image"
