@@ -32,7 +32,9 @@ jobs:
           build-mount-path: '/var/lib/docker/'
 
       - name: Restart docker
-        run: sudo service docker restart
+        run: |
+          sudo docker system prune -a -f
+          sudo service docker restart
 
         
       - name: Sync and Push to Aliyun
