@@ -61,7 +61,7 @@ jobs:
               image_name_tag=$(echo "$full_image" | awk -F'/' '{print $NF}')
               if [[ "$full_image" == *"/"* ]]; then
                   org_part=$(echo "$full_image" | sed "s|\/${image_name_tag}||" | tr '/' '_')
-                  new_repo_name="${org_part}/${image_name_tag}"
+                  new_repo_name="${org_part}\/${image_name_tag}"
               else
                   # org_part="library"
                   new_repo_name="${image_name_tag}"
@@ -87,7 +87,7 @@ jobs:
               fi
       
               # 如果目标存在且 digest 相同，跳过
-              if $dest_exists && [ "$src_digest" = "$dest_digest" ]; then
+              if $dest_exists && [ "$src_digest" == "$dest_digest" ]; then
                   echo "✅ Image $image_name_tag already up-to-date, skipping"
                   SYNC_SUMMARY="${SYNC_SUMMARY}\n✨ ${image_name_tag} (已同步)"
                   SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
