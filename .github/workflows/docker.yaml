@@ -95,6 +95,7 @@ jobs:
               fi
           
               # ---------- 打标签、推送、清理（原逻辑） ----------
+              docker rmi "$target_image"
               if docker tag "$full_image" "$target_image" && docker push "$target_image"; then
                   docker rmi "$full_image"
                   SYNC_SUMMARY="${SYNC_SUMMARY}\n✨ ${image_name_tag}"
