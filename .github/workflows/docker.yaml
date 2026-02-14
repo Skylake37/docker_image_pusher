@@ -33,7 +33,6 @@ jobs:
 
       - name: Restart docker
         run: |
-          sudo docker system prune -a -f
           sudo service docker restart
 
         
