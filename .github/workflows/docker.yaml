@@ -137,6 +137,17 @@ jobs:
                   echo "✅ Success: $image_name_tag"
                   SYNC_SUMMARY="${SYNC_SUMMARY}\n✨ ${image_name_tag}"
                   SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+                  # 复制后立即验证目标 digest
+                  if new_dest_info=$(skopeo inspect docker://"$target_image" --creds "$ALIYUN_REGISTRY_USER:$ALIYUN_REGISTRY_PASSWORD" 2>/dev/null); then
+                      new_dest_digest=$(echo "$new_dest_info" | jq -r '.Digest')
+                      echo "🔍 After copy, target digest: $new_dest_digest"
+                      if [ "$src_digest" = "$new_dest_digest" ]; then
+                          echo "✅ Digest match after copy"
+                      else
+                          echo "⚠️ Digest mismatch after copy: src=$src_digest, dest=$new_dest_digest"
+                          # 可以进一步检查是否因为 platform_args 未生效
+                      fi
+                  fi
               else
                   echo "❌ Failed: $image_name_tag"
                   SYNC_SUMMARY="${SYNC_SUMMARY}\n🚨 ${image_name_tag} (复制失败)"
