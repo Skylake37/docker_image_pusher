@@ -86,9 +86,12 @@ jobs:
                   docker pull "${pull_params[@]}" "$full_image"
               fi
 
-              # 直接使用 skopeo copy 从源复制到目标
-              echo "Copying $full_image to $target_image with params: ${pull_params[*]}"
-              if skopeo copy --src-creds=... --dest-creds=... ${pull_params[@]} docker://$full_image docker://$target_image; then
+              # 使用 skopeo copy 直接复制，保留完整 manifest 信息
+              echo "Copying $full_image to $target_image ..."
+              if skopeo copy \
+                  --dest-creds "$ALIYUN_REGISTRY_USER:$ALIYUN_REGISTRY_PASSWORD" \
+                  docker://"$full_image" \
+                  docker://"$target_image"; then
                   echo ">>> Success: $image_name_tag"
                   SYNC_SUMMARY="${SYNC_SUMMARY}\n✨ ${image_name_tag}"
                   SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
