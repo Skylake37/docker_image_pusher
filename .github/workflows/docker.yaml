@@ -85,7 +85,7 @@ jobs:
               # --- 新增：强制删除远程标签（处理损坏情况）---
               # 在拉取之前，用 regctl 尝试删除远程标签（忽略错误）
               echo "Attempting to delete remote tag $target_image (if exists and broken)..."
-              regctl manifest delete "$target_image" --user "$ALIYUN_REGISTRY_USER:$ALIYUN_REGISTRY_PASSWORD" || true
+              regctl manifest delete "$target_image" || true
               
               # 执行拉取（带参数）
               echo "Pulling $full_image with params: ${pull_params[*]}"
