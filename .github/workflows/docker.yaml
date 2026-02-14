@@ -60,8 +60,8 @@ jobs:
               # ---------- 提取镜像名标签和仓库组织（原逻辑不变） ----------
               image_name_tag=$(echo "$full_image" | awk -F'/' '{print $NF}')
               if [[ "$full_image" == *"/"* ]]; then
-                  org_part=$(echo "$full_image" | sed "s|/${image_name_tag}||")
-                  new_repo_name="${org_part}/${image_name_tag}"
+                  org_part=$(echo "$full_image" | sed "s|/${image_name_tag}||" | tr '/' '_')
+                  new_repo_name="${org_part}_${image_name_tag}"
               else
                   # org_part="library"
                   new_repo_name="${image_name_tag}"
@@ -71,13 +71,27 @@ jobs:
 
               echo "Processing: $full_image → $target_image"
               
-              # 获取源镜像 digest（需要 jq 解析 JSON）
-              if ! src_digest=$(skopeo inspect docker://"$full_image" 2>/dev/null | jq -r '.Digest'); then
+              # 解析 platform 参数（如果有）
+              src_inspect_args=()
+              for ((i=0; i<${#pull_params[@]}; i++)); do
+                  if [[ "${pull_params[i]}" == "--platform" ]] && [[ $((i+1)) -lt ${#pull_params[@]} ]]; then
+                      platform="${pull_params[i+1]}"
+                      os=$(echo "$platform" | cut -d/ -f1)
+                      arch=$(echo "$platform" | cut -d/ -f2)
+                      src_inspect_args+=(--override-os "$os" --override-arch "$arch")
+                      echo "🔍 Source inspect will use platform: $platform"
+                      break
+                  fi
+              done
+              
+              # 获取源镜像 digest（已考虑平台覆盖）
+              if ! src_digest=$(skopeo inspect "${src_inspect_args[@]}" docker://"$full_image" 2>/dev/null | jq -r '.Digest'); then
                   echo "❌ Failed to inspect source image: $full_image"
                   SYNC_SUMMARY="${SYNC_SUMMARY}\n🚨 ${image_name_tag} (获取源信息失败)"
                   FAILURE_COUNT=$((FAILURE_COUNT + 1))
                   continue
               fi
+              echo "Source digest: $src_digest"
       
               # 检查目标镜像是否存在并获取 digest
               dest_exists=false
@@ -87,7 +101,8 @@ jobs:
               fi
       
               # 如果目标存在且 digest 相同，跳过
-              if $dest_exists && [ "$src_digest" == "$dest_digest" ]; then
+              echo "🔍 Source digest: $src_digest"
+              if [ "$dest_exists" = true ] && [ "$src_digest" == "$dest_digest" ]; then
                   echo "✅ Image $image_name_tag already up-to-date, skipping"
                   SYNC_SUMMARY="${SYNC_SUMMARY}\n✨ ${image_name_tag} (已同步)"
                   SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
@@ -98,7 +113,7 @@ jobs:
               skopeo_args=()
               # 解析平台参数（如果有）
               for ((i=0; i<${#pull_params[@]}; i++)); do
-                  if [[ "${pull_params[i]}" == "--platform" ]] && [[ $((i+1)) -lt ${#pull_params[@]} ]]; then
+                  if [[ "${pull_params[i]}" = "--platform" ]] && [[ $((i+1)) -lt ${#pull_params[@]} ]]; then
                       platform="${pull_params[i+1]}"
                       os=$(echo "$platform" | cut -d/ -f1)
                       arch=$(echo "$platform" | cut -d/ -f2)
