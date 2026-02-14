@@ -33,9 +33,6 @@ jobs:
 
       - name: Restart docker
         run: |
-          sudo service docker stop
-          # 清理工作目录（慎用，会删除所有已拉取的代码和构建产物）
-          sudo rm -rf /home/runner/actions-runner/_work/*
           # 清理诊断日志
           sudo rm -rf /home/runner/actions-runner/_diag/*
           # 清理缓存目录
