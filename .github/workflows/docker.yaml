@@ -48,8 +48,6 @@ jobs:
           SYNC_SUMMARY=""
           SUCCESS_COUNT=0
           FAILURE_COUNT=0
-
-          docker build -t "$ALIYUN_REGISTRY/$ALIYUN_NAME_SPACE/sapmachine:latest"
           
           while IFS= read -r line || [ -n "$line" ]; do
               [[ -z "$line" ]] || [[ "$line" =~ ^\s*# ]] && continue
