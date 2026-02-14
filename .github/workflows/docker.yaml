@@ -33,6 +33,7 @@ jobs:
 
       - name: Restart docker
         run: |
+          du -sh /* 2>/dev/null | sort -hr | head -20
           sudo service docker restart
 
         
