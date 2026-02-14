@@ -1,4 +1,3 @@
-mcdreforged/mcdreforged-temurin
-nginx
-sapmachine 
---platform=linux/amd64
+mcdreforged/mcdreforged-temurin:latest
+nginx:latest
+sapmachine:latest
