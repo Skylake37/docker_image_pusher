@@ -39,12 +39,6 @@ jobs:
           # 清理 Runner 日志（不影响运行中的任务）
           sudo rm -rf /home/runner/actions-runner/_diag/*
           sudo service docker restart
-          
-      - name: Install regctl
-        run: |
-          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 > regctl
-          chmod +x regctl
-          sudo mv regctl /usr/local/bin/
         
       - name: Sync and Push to Aliyun
         id: sync_step
@@ -71,7 +65,8 @@ jobs:
               if [[ "$full_image" == *"/"* ]]; then
                   org_part=$(echo "$full_image" | sed "s|\/${image_name_tag}||" | tr '/' '_')
               else
-                  org_part="library"
+                  # org_part="library"
+                  org_part=""
               fi
               new_repo_name="${org_part}_${image_name_tag}"
               target_image="$ALIYUN_REGISTRY/$ALIYUN_NAME_SPACE/$new_repo_name"
