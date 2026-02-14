@@ -34,9 +34,9 @@ jobs:
       - name: Restart docker
         run: |
           # 清理诊断日志
-          sudo rm -rf /home/runner/actions-runner/_diag/*
+          rm -rf /home/runner/actions-runner/_diag/*
           # 清理缓存目录
-          sudo rm -rf /home/runner/actions-runner/cached/*
+          rm -rf /home/runner/actions-runner/cached/*
           sudo service docker restart
 
         
