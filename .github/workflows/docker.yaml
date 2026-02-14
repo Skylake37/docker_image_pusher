@@ -70,13 +70,18 @@ jobs:
               new_repo_name="${org_part}_${image_name_tag}"
               target_image="$ALIYUN_REGISTRY/$ALIYUN_NAME_SPACE/$new_repo_name"
           
-              # ---------- 检查远程是否已存在（原逻辑） ----------
+              # 检查镜像是否存在（原有逻辑，用于跳过已存在的正常镜像）
               if skopeo inspect docker://$target_image --creds "$ALIYUN_REGISTRY_USER:$ALIYUN_REGISTRY_PASSWORD" > /dev/null 2>&1; then
                   echo ">>> Skip: $image_name_tag"
                   continue
               fi
-          
-              # ---------- 执行拉取：参数在前，镜像名在后 ----------
+              
+              # --- 新增：强制删除远程标签（处理损坏情况）---
+              # 即使 inspect 失败（标签损坏），删除操作可能移除它
+              echo "Attempting to delete remote tag $target_image (if exists and broken)..."
+              skopeo delete docker://$target_image --creds "$ALIYUN_REGISTRY_USER:$ALIYUN_REGISTRY_PASSWORD" || true
+              
+              # 执行拉取（带参数）
               echo "Pulling $full_image with params: ${pull_params[*]}"
               if [ ${#pull_params[@]} -eq 0 ]; then
                   docker pull "$full_image"
