@@ -64,11 +64,12 @@ jobs:
               image_name_tag=$(echo "$full_image" | awk -F'/' '{print $NF}')
               if [[ "$full_image" == *"/"* ]]; then
                   org_part=$(echo "$full_image" | sed "s|\/${image_name_tag}||" | tr '/' '_')
+                  new_repo_name="${org_part}_${image_name_tag}"
               else
                   # org_part="library"
-                  org_part=""
+                  new_repo_name="${image_name_tag}"
               fi
-              new_repo_name="${org_part}_${image_name_tag}"
+              # new_repo_name="${org_part}_${image_name_tag}"
               target_image="$ALIYUN_REGISTRY/$ALIYUN_NAME_SPACE/$new_repo_name"
           
               # 检查镜像是否存在（原有逻辑，用于跳过已存在的正常镜像）
