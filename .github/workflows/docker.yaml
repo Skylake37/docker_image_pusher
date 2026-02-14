@@ -39,6 +39,7 @@ jobs:
           # 清理 Runner 日志（不影响运行中的任务）
           sudo rm -rf /home/runner/actions-runner/_diag/*
           sudo service docker restart
+          docker build -t "${ALIYUN_REGISTRY}/${ALIYUN_NAME_SPACE}/sapmachine:latest"
         
       - name: Sync and Push to Aliyun
         id: sync_step
