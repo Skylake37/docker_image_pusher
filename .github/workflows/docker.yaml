@@ -39,6 +39,12 @@ jobs:
           # 清理 Runner 日志（不影响运行中的任务）
           sudo rm -rf /home/runner/actions-runner/_diag/*
           sudo service docker restart
+          
+      - name: Install regctl
+        run: |
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 > regctl
+          chmod +x regctl
+          sudo mv regctl /usr/local/bin/
         
       - name: Sync and Push to Aliyun
         id: sync_step
@@ -77,9 +83,9 @@ jobs:
               fi
               
               # --- 新增：强制删除远程标签（处理损坏情况）---
-              # 即使 inspect 失败（标签损坏），删除操作可能移除它
+              # 在拉取之前，用 regctl 尝试删除远程标签（忽略错误）
               echo "Attempting to delete remote tag $target_image (if exists and broken)..."
-              skopeo delete docker://$target_image --creds "$ALIYUN_REGISTRY_USER:$ALIYUN_REGISTRY_PASSWORD" || true
+              regctl manifest delete "$target_image" --user "$ALIYUN_REGISTRY_USER:$ALIYUN_REGISTRY_PASSWORD" || true
               
               # 执行拉取（带参数）
               echo "Pulling $full_image with params: ${pull_params[*]}"
