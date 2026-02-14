@@ -86,23 +86,35 @@ jobs:
                   docker pull "${pull_params[@]}" "$full_image"
               fi
 
-              # 如果拉取失败，记录并跳过后续
-              if [ $? -ne 0 ]; then
-                  echo "Pull failed for $full_image"
-                  SYNC_SUMMARY="${SYNC_SUMMARY}\n🚨 ${image_name_tag} (拉取失败)"
-                  FAILURE_COUNT=$((FAILURE_COUNT + 1))
-                  continue
-              fi
-          
-              # ---------- 打标签、推送、清理（原逻辑） ----------
-              if docker tag "$full_image" "$target_image" && docker push "$target_image"; then
-                  docker rmi "$full_image" "$target_image"
+              # 直接使用 skopeo copy 从源复制到目标
+              echo "Copying $full_image to $target_image with params: ${pull_params[*]}"
+              if skopeo copy --src-creds=... --dest-creds=... ${pull_params[@]} docker://$full_image docker://$target_image; then
+                  echo ">>> Success: $image_name_tag"
                   SYNC_SUMMARY="${SYNC_SUMMARY}\n✨ ${image_name_tag}"
                   SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
               else
-                  SYNC_SUMMARY="${SYNC_SUMMARY}\n🚨 ${image_name_tag} (推送失败)"
+                  echo ">>> Failed: $image_name_tag"
+                  SYNC_SUMMARY="${SYNC_SUMMARY}\n🚨 ${image_name_tag} (复制失败)"
                   FAILURE_COUNT=$((FAILURE_COUNT + 1))
               fi
+
+              # # 如果拉取失败，记录并跳过后续
+              # if [ $? -ne 0 ]; then
+              #     echo "Pull failed for $full_image"
+              #     SYNC_SUMMARY="${SYNC_SUMMARY}\n🚨 ${image_name_tag} (拉取失败)"
+              #     FAILURE_COUNT=$((FAILURE_COUNT + 1))
+              #     continue
+              # fi
+          
+              # # ---------- 打标签、推送、清理（原逻辑） ----------
+              # if docker tag "$full_image" "$target_image" && docker push "$target_image"; then
+              #     docker rmi "$full_image" "$target_image"
+              #     SYNC_SUMMARY="${SYNC_SUMMARY}\n✨ ${image_name_tag}"
+              #     SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+              # else
+              #     SYNC_SUMMARY="${SYNC_SUMMARY}\n🚨 ${image_name_tag} (推送失败)"
+              #     FAILURE_COUNT=$((FAILURE_COUNT + 1))
+              # fi
           done < images.txt
 
           # 写入环境变量
