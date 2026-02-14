@@ -52,72 +52,76 @@ jobs:
           while IFS= read -r line || [ -n "$line" ]; do
               [[ -z "$line" ]] || [[ "$line" =~ ^\s*# ]] && continue
           
-              # ---------- 使用 eval 将带引号的行解析为数组 ----------
-              # 警告：确保 images.txt 内容可信，避免注入风险
+              # 解析行：第一个字段为镜像名，其余为参数
               eval "parts=($line)"
-              # 第一个元素是镜像名
               full_image="${parts[0]}"
-              # 剩余元素都是参数
               pull_params=("${parts[@]:1}")
           
               # ---------- 提取镜像名标签和仓库组织（原逻辑不变） ----------
               image_name_tag=$(echo "$full_image" | awk -F'/' '{print $NF}')
               if [[ "$full_image" == *"/"* ]]; then
                   org_part=$(echo "$full_image" | sed "s|\/${image_name_tag}||" | tr '/' '_')
-                  new_repo_name="${org_part}_${image_name_tag}"
+                  new_repo_name="${org_part}/${image_name_tag}"
               else
                   # org_part="library"
                   new_repo_name="${image_name_tag}"
               fi
               # new_repo_name="${org_part}_${image_name_tag}"
               target_image="$ALIYUN_REGISTRY/$ALIYUN_NAME_SPACE/$new_repo_name"
-          
-              # 检查镜像是否存在（原有逻辑，用于跳过已存在的正常镜像）
-              if skopeo inspect docker://$target_image --creds "$ALIYUN_REGISTRY_USER:$ALIYUN_REGISTRY_PASSWORD" > /dev/null 2>&1; then
-                  echo ">>> Skip: $image_name_tag"
+
+              echo "Processing: $full_image → $target_image"
+              
+              # 获取源镜像 digest（需要 jq 解析 JSON）
+              if ! src_digest=$(skopeo inspect docker://"$full_image" 2>/dev/null | jq -r '.Digest'); then
+                  echo "❌ Failed to inspect source image: $full_image"
+                  SYNC_SUMMARY="${SYNC_SUMMARY}\n🚨 ${image_name_tag} (获取源信息失败)"
+                  FAILURE_COUNT=$((FAILURE_COUNT + 1))
                   continue
               fi
-
-              # 执行拉取（带参数）
-              echo "Pulling $full_image with params: ${pull_params[*]}"
-              if [ ${#pull_params[@]} -eq 0 ]; then
-                  docker pull "$full_image"
-              else
-                  docker pull "${pull_params[@]}" "$full_image"
+      
+              # 检查目标镜像是否存在并获取 digest
+              dest_exists=false
+              if dest_info=$(skopeo inspect docker://"$target_image" --creds "$ALIYUN_REGISTRY_USER:$ALIYUN_REGISTRY_PASSWORD" 2>/dev/null); then
+                  dest_digest=$(echo "$dest_info" | jq -r '.Digest')
+                  dest_exists=true
               fi
-
-              # 使用 skopeo copy 直接复制，保留完整 manifest 信息
-              echo "Copying $full_image to $target_image ..."
-              if skopeo copy \
+      
+              # 如果目标存在且 digest 相同，跳过
+              if $dest_exists && [ "$src_digest" = "$dest_digest" ]; then
+                  echo "✅ Image $image_name_tag already up-to-date, skipping"
+                  SYNC_SUMMARY="${SYNC_SUMMARY}\n✨ ${image_name_tag} (已同步)"
+                  SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+                  continue
+              fi
+      
+              # 准备 skopeo copy 参数
+              skopeo_args=()
+              # 解析平台参数（如果有）
+              for ((i=0; i<${#pull_params[@]}; i++)); do
+                  if [[ "${pull_params[i]}" == "--platform" ]] && [[ $((i+1)) -lt ${#pull_params[@]} ]]; then
+                      platform="${pull_params[i+1]}"
+                      os=$(echo "$platform" | cut -d/ -f1)
+                      arch=$(echo "$platform" | cut -d/ -f2)
+                      skopeo_args+=(--override-os "$os" --override-arch "$arch")
+                      echo "🔧 Using platform: $platform"
+                      break
+                  fi
+              done
+      
+              # 执行复制
+              echo "🔄 Copying $full_image to $target_image ..."
+              if skopeo copy "${skopeo_args[@]}" \
                   --dest-creds "$ALIYUN_REGISTRY_USER:$ALIYUN_REGISTRY_PASSWORD" \
                   docker://"$full_image" \
                   docker://"$target_image"; then
-                  echo ">>> Success: $image_name_tag"
+                  echo "✅ Success: $image_name_tag"
                   SYNC_SUMMARY="${SYNC_SUMMARY}\n✨ ${image_name_tag}"
                   SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
               else
-                  echo ">>> Failed: $image_name_tag"
+                  echo "❌ Failed: $image_name_tag"
                   SYNC_SUMMARY="${SYNC_SUMMARY}\n🚨 ${image_name_tag} (复制失败)"
                   FAILURE_COUNT=$((FAILURE_COUNT + 1))
               fi
-
-              # # 如果拉取失败，记录并跳过后续
-              # if [ $? -ne 0 ]; then
-              #     echo "Pull failed for $full_image"
-              #     SYNC_SUMMARY="${SYNC_SUMMARY}\n🚨 ${image_name_tag} (拉取失败)"
-              #     FAILURE_COUNT=$((FAILURE_COUNT + 1))
-              #     continue
-              # fi
-          
-              # # ---------- 打标签、推送、清理（原逻辑） ----------
-              # if docker tag "$full_image" "$target_image" && docker push "$target_image"; then
-              #     docker rmi "$full_image" "$target_image"
-              #     SYNC_SUMMARY="${SYNC_SUMMARY}\n✨ ${image_name_tag}"
-              #     SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
-              # else
-              #     SYNC_SUMMARY="${SYNC_SUMMARY}\n🚨 ${image_name_tag} (推送失败)"
-              #     FAILURE_COUNT=$((FAILURE_COUNT + 1))
-              # fi
           done < images.txt
 
           # 写入环境变量
