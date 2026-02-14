@@ -51,34 +51,53 @@ jobs:
 
           while IFS= read -r line || [ -n "$line" ]; do
               [[ -z "$line" ]] || [[ "$line" =~ ^\s*# ]] && continue
-              
-              raw_image=$(echo "$line" | awk '{print $NF}')
-              full_image="${raw_image%%@*}"
+          
+              # ---------- 使用 eval 将带引号的行解析为数组 ----------
+              # 警告：确保 images.txt 内容可信，避免注入风险
+              eval "parts=($line)"
+              # 第一个元素是镜像名
+              full_image="${parts[0]}"
+              # 剩余元素都是参数
+              pull_params=("${parts[@]:1}")
+          
+              # ---------- 提取镜像名标签和仓库组织（原逻辑不变） ----------
               image_name_tag=$(echo "$full_image" | awk -F'/' '{print $NF}')
-              
               if [[ "$full_image" == *"/"* ]]; then
                   org_part=$(echo "$full_image" | sed "s|\/${image_name_tag}||" | tr '/' '_')
               else
                   org_part="library"
               fi
-              
               new_repo_name="${org_part}_${image_name_tag}"
               target_image="$ALIYUN_REGISTRY/$ALIYUN_NAME_SPACE/$new_repo_name"
-
-              # 检查镜像是否存在
+          
+              # ---------- 检查远程是否已存在（原逻辑） ----------
               if skopeo inspect docker://$target_image --creds "$ALIYUN_REGISTRY_USER:$ALIYUN_REGISTRY_PASSWORD" > /dev/null 2>&1; then
                   echo ">>> Skip: $image_name_tag"
                   continue
               fi
-
-              # 执行同步
-              if docker pull "$full_image" && docker tag "$full_image" "$target_image" && docker push "$target_image"; then
+          
+              # ---------- 执行拉取：参数在前，镜像名在后 ----------
+              echo "Pulling $full_image with params: ${pull_params[*]}"
+              if [ ${#pull_params[@]} -eq 0 ]; then
+                  docker pull "$full_image"
+              else
+                  docker pull "${pull_params[@]}" "$full_image"
+              fi
+          
+              # 如果拉取失败，记录并跳过后续
+              if [ $? -ne 0 ]; then
+                  echo "Pull failed for $full_image"
+                  SYNC_SUMMARY="${SYNC_SUMMARY}\n🚨 ${image_name_tag} (拉取失败)"
+                  FAILURE_COUNT=$((FAILURE_COUNT + 1))
+                  continue
+              fi
+          
+              # ---------- 打标签、推送、清理（原逻辑） ----------
+              if docker tag "$full_image" "$target_image" && docker push "$target_image"; then
                   docker rmi "$full_image" "$target_image"
-                  # 只有成功的才加入 SUMMARY
                   SYNC_SUMMARY="${SYNC_SUMMARY}\n✨ ${image_name_tag}"
                   SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
               else
-                  # 只有失败的才加入 SUMMARY
                   SYNC_SUMMARY="${SYNC_SUMMARY}\n🚨 ${image_name_tag} (推送失败)"
                   FAILURE_COUNT=$((FAILURE_COUNT + 1))
               fi
