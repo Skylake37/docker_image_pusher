@@ -19,9 +19,6 @@ jobs:
     name: Sync Images
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
       - name: Maximize build space
         uses: easimon/maximize-build-space@master
         with:
@@ -30,11 +27,14 @@ jobs:
           remove-dotnet: 'true'
           remove-haskell: 'true'
           build-mount-path: '/var/lib/docker/'
+    
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Restart docker
         run: |
+          sudo du -sh /* 2>/dev/null | sort -hr | head -20
           sudo service docker restart
-
         
       - name: Sync and Push to Aliyun
         id: sync_step
