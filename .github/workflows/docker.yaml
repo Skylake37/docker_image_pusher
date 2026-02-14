@@ -78,8 +78,6 @@ jobs:
                   continue
               fi
 
-              docker buildx build --platform linux/amd64,linux/arm64/v8 -t "$ALIYUN_REGISTRY/$ALIYUN_NAME_SPACE/sapmachine:latest" --push
-              
               # 执行拉取（带参数）
               echo "Pulling $full_image with params: ${pull_params[*]}"
               if [ ${#pull_params[@]} -eq 0 ]; then
@@ -97,7 +95,7 @@ jobs:
               fi
           
               # ---------- 打标签、推送、清理（原逻辑） ----------
-              if docker tag "$full_image" "$target_image" && docker push "$target_image"; then
+              if docker tag "$full_image" "$target_image" && docker push "${pull_params[@]}" "$target_image"; then
                   docker rmi "$full_image" "$target_image"
                   SYNC_SUMMARY="${SYNC_SUMMARY}\n✨ ${image_name_tag}"
                   SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
