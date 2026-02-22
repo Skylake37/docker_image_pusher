@@ -2,6 +2,8 @@ name: Docker Image Sync to Aliyun
 
 on:
   workflow_dispatch:
+  schedule:
+      - cron: '00 23 * * *'
   push:
     branches: [ main ]
     paths:
